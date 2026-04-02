@@ -1,0 +1,44 @@
+import { NextRequest, NextResponse } from "next/server";
+import { storage, db, embeddingModel, generativeModel } from "@/lib/gcp";
+import { v4 as uuidv4 } from "uuid"; // npm i uuid
+
+export async function POST(req: NextRequest) {
+  const formData = await req.formData();
+  const file = formData.get("file") as File;
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  const fileId = uuidv4();
+  const filename = `${fileId}-${file.name}`;
+
+  // 1. Upload to GCS
+  const rawBucket = storage.bucket(process.env.GCS_RAW_BUCKET!);
+  await rawBucket.file(filename).save(fileBuffer, {
+    metadata: { contentType: file.type },
+  });
+
+  // 2. Generate embedding with Gemini Embedding 2 (multimodal)
+  const embedResponse = await embeddingModel.embedContent({
+    content: [{ inlineData: { data: fileBuffer.toString("base64"), mimeType: file.type } }],
+  });
+  const embedding = embedResponse.embedding.values;
+
+  // 3. Generate AI description + tags with Gemini
+  const genResponse = await generativeModel.generateContent({
+    contents: [{ role: "user", parts: [{ text: `Describe this media asset for a media agency DAM. Return JSON: {description, tags: string[]}` }, { inlineData: { data: fileBuffer.toString("base64"), mimeType: file.type } }] }],
+  });
+  const aiJson = JSON.parse(genResponse.response.text());
+
+  // 4. Save metadata + vector to Firestore (vector search ready)
+  await db.collection("assets").doc(fileId).set({
+    id: fileId,
+    filename,
+    url: `gs://${process.env.GCS_RAW_BUCKET}/${filename}`,
+    contentType: file.type,
+    description: aiJson.description,
+    tags: aiJson.tags,
+    embedding, // Firestore vector field
+    uploadedAt: new Date(),
+    owner: "agency-user@example.com", // replace with auth
+  });
+
+  return NextResponse.json({ id: fileId, success: true });
+}
