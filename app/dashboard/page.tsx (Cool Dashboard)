@@ -1,0 +1,19 @@
+"use client";
+import { AssetGrid } from "@/components/AssetGrid"; // your masonry grid
+import { UploadDropzone } from "@/components/UploadDropzone";
+import { AIChatSidebar } from "@/components/AIChatSidebar";
+
+export default function Dashboard() {
+  return (
+    <div className="flex h-screen bg-navy">
+      <DashboardSidebar />
+      <main className="flex-1 p-8 overflow-auto">
+        <h1 className="text-4xl font-bold text-primary mb-2">Agency DAM</h1>
+        <p className="text-gray-400 mb-8">AI finds your assets. You create magic.</p>
+        <UploadDropzone />
+        <AssetGrid />
+      </main>
+      <AIChatSidebar />
+    </div>
+  );
+}
