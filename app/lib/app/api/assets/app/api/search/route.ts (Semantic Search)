@@ -1,0 +1,20 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db, embeddingModel } from "@/lib/gcp";
+
+export async function POST(req: NextRequest) {
+  const { query } = await req.json();
+
+  // Embed query text
+  const embedRes = await embeddingModel.embedContent({ content: query });
+  const queryEmbedding = embedRes.embedding.values;
+
+  // Firestore vector similarity search (MVP)
+  const snapshot = await db.collection("assets")
+    .where("embedding", "vector", queryEmbedding) // Firestore vector query
+    .orderBy("embedding", "vector") // similarity
+    .limit(20)
+    .get();
+
+  const results = snapshot.docs.map(doc => doc.data());
+  return NextResponse.json(results);
+}
