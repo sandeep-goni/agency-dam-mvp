@@ -1,0 +1,18 @@
+import { VertexAI } from "@google-cloud/vertexai";
+import { Storage } from "@google-cloud/storage";
+import { Firestore } from "@google-cloud/firestore";
+
+const projectId = process.env.GOOGLE_CLOUD_PROJECT!;
+const location = process.env.GOOGLE_CLOUD_LOCATION!;
+
+export const vertexAI = new VertexAI({ projectId, location });
+export const storage = new Storage();
+export const db = new Firestore();
+
+export const embeddingModel = vertexAI.getGenerativeModel({
+  model: "gemini-embedding-2-preview",
+});
+
+export const generativeModel = vertexAI.getGenerativeModel({
+  model: "gemini-1.5-flash", // or latest stable
+});
